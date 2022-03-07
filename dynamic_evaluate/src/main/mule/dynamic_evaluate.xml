@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="02089bce-b6fd-4171-84ec-315543df0dee" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="01836004-b81e-4578-90b8-742c23d56c6b" >
+		<file:connection workingDir="D:\10.Mulesoft\01.workspace\dynamic_evaluate\src\main\resources\dwl" />
+	</file:config>
+	<file:config name="File_Config1" doc:name="File Config" doc:id="d96cff87-41d6-4895-bd17-49e2bd408816" >
+		<file:connection workingDir="D:\10.Mulesoft\05.work" />
+	</file:config>
+	<flow name="dynamic_evaluateFlow1" doc:id="4dabb590-8a71-40d7-9a3f-95985d8d4277" >
+		<file:listener doc:name="On New or Updated File" doc:id="9cb4cc33-9c6b-4bf8-996c-9a24c93f943a" config-ref="File_Config1" directory="dynamic_evaluate" moveToDirectory="bk" renameTo='#[attributes.fileName ++ ".bk"]'>
+			<scheduling-strategy >
+				<fixed-frequency frequency="20" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv" />
+		</file:listener>
+		<ee:transform doc:name="Transform Message" doc:id="ad53bef4-a0b4-4018-9d40-f93f8ef26e4a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+fun getA() = payload map(object,index) -> {
+	ID: "panguA" ++ object.ID,
+	name: "panguA" ++ object.name,
+	age: "panguA" ++ object.age
+}
+fun getB() = payload map(object,index) -> {
+	ID: "panguB" ++ object.ID,
+	name: "panguB" ++ object.name,
+	age: "panguB" ++ object.age
+}
+fun getC() = payload map(object,index) -> {
+	ID: "panguC" ++ object.ID,
+	name: "panguC" ++ object.name,
+	age: "panguC" ++ object.age
+}
+---
+if(attributes.fileName == "a.csv") getA()
+else if(attributes.fileName == "b.csv") getB()
+else getC()]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="6e254b75-2ee8-48c9-ab27-3bf1a0a645af" message="#[payload]"/>
+	</flow>
+	<flow name="dynamic_evaluateFlow" doc:id="580b5539-1400-4b22-ac49-94d71a1ae07e" initialState="stopped">
+		<file:listener doc:name="On New or Updated File" doc:id="8d9dad7c-0592-4caf-9c40-511417168911" directory="dynamic_evaluate" moveToDirectory="bk" renameTo='#[attributes.fileName ++ ".bk"]' config-ref="File_Config1">
+			<scheduling-strategy >
+				<fixed-frequency frequency="20" timeUnit="SECONDS"/>
+			</scheduling-strategy>
+			<file:matcher filenamePattern="*.csv" />
+		</file:listener>
+		<logger level="INFO" doc:name="Logger" doc:id="bf17b4fc-9c38-40ac-a9d0-07742709cd75" message="#[payload]"/>
+		<file:read doc:name="Read" doc:id="0e28fbba-9239-49ea-babd-4eafbdce579f" path='#[replace(attributes.fileName, "csv") with ("dwl")]' target="dwScript" config-ref="File_Config"/>
+		<ee:dynamic-evaluate doc:name="Dynamic Evaluate" doc:id="bfab77c5-4711-4d26-af1a-d3d6e3d4143e" expression="#[vars.dwScript]" target="result"/>
+		<logger level="INFO" doc:name="Logger" doc:id="2ad0f957-2f9e-4639-bc98-6068a1e44df8" message="#[vars.result]"/>
+	</flow>
+</mule>
